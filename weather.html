@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background-color: rgb(201, 237, 225); 
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .card { 
+            width: 400px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            border-radius: 10px; 
+            background: white;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); 
+        }
+        .search { 
+            display: flex; 
+            justify-content: center; 
+            gap: 10px; 
+            margin-bottom: 20px;
+        }
+        .search input { 
+            padding: 8px; 
+            border-radius: 5px; 
+            border: 1px solid #ccc; 
+            width: 65%; 
+            font-size: 14px;
+        }
+        .search button { 
+            background-color: rgb(6, 6, 55); 
+            color: white; 
+            border: none; 
+            padding: 8px 15px; 
+            border-radius: 5px; 
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .search button:hover {
+            background-color: rgb(20, 20, 80);
+        }
+        .weather-icon { 
+            width: 100px; 
+            margin: 10px auto; 
+        }
+        .error { 
+            color: rgb(244, 7, 7); 
+            font-size: 14px; 
+            margin-top: 10px; 
+            display: none;
+        }
+        .weather { 
+            display: none; 
+        }
+        .favorites {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .favorites h3 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: rgb(6, 6, 55);
+        }
+        .city-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .city-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+        .city-name {
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .city-name:hover {
+            color: rgb(6, 6, 55);
+        }
+        .city-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .edit-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .edit-btn:hover {
+            background-color: #218838;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+        .no-cities {
+            color: #777;
+            font-style: italic;
+            text-align: center;
+            padding: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="search">
+            <input type="text" placeholder="Enter city name" spellcheck="false" id="cityInput">
+            <button id="searchBtn">Search</button>
+        </div>
+        <p class="error">Invalid city name. Please try again.</p>
+        <div class="weather">
+            <img src="https://openweathermap.org/img/wn/01d@2x.png" alt="weather icon" class="weather-icon">
+            <h1 class="temp">--°C</h1>
+            <h2 class="city">City</h2>
+            <div class="details">
+                <div class="col">
+                    <p class="humidity">--%</p>
+                    <p>Humidity</p>
+                </div>
+                <div class="col">
+                    <p class="wind">-- km/h</p>
+                    <p>Wind speed</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="favorites">
+            <h3>Favorite Cities</h3>
+            <div class="city-list" id="cityList">
+                <p class="no-cities">No favorite cities yet. Search for a city to add it.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apikey = "8a7e9c8b8cd67fc5007dc3eec9156063";  
+        const apiurl = "https://api.openweathermap.org/data/2.5/weather?q=";
+
+        const searchBox = document.getElementById("cityInput");
+        const searchBtn = document.getElementById("searchBtn");
+        const weatherIcon = document.querySelector(".weather-icon");
+        const errorMessage = document.querySelector(".error");
+        const cityList = document.getElementById("cityList");
+
+        // Load favorite cities from localStorage
+        let favoriteCities = JSON.parse(localStorage.getItem("favoriteCities")) || [];
+
+        // Initialize the app
+        document.addEventListener("DOMContentLoaded", () => {
+            renderFavoriteCities();
+            
+            // Check if there are favorite cities and show the first one
+            if (favoriteCities.length > 0) {
+                checkWeather(favoriteCities[0].name);
+            }
+        });
+
+        // Search button click event
+        searchBtn.addEventListener("click", () => {
+            const city = searchBox.value.trim();
+            if (city) {
+                checkWeather(city);
+            }
+        });
+
+        // Enter key event
+        searchBox.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                searchBtn.click();
+            }
+        });
+
+        async function checkWeather(city) {
+            try {
+                const response = await fetch(`${apiurl}${city}&appid=${apikey}&units=metric`);
+                if (!response.ok) {
+                    errorMessage.style.display = "block";
+                    document.querySelector(".weather").style.display = "none";
+                    return;
+                }
+
+                const data = await response.json();
+                console.log(data);
+
+                errorMessage.style.display = "none"; 
+                document.querySelector(".weather").style.display = "block";
+
+                document.querySelector(".city").innerHTML = data.name;
+                document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°C";
+                document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
+                document.querySelector(".wind").innerHTML = data.wind.speed + " km/h";
+
+                // Update weather icon
+                weatherIcon.src =` https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+                // Add to favorites if not already there
+                addToFavorites(data.name, data.id);
+            } catch (error) {
+                console.error("Error fetching weather data:", error);
+                errorMessage.style.display = "block";
+            }
+        }
+
+        function addToFavorites(cityName, cityId) {
+            // Check if city already exists
+            const exists = favoriteCities.some(city => city.id === cityId);
+            
+            if (!exists) {
+                favoriteCities.push({ name: cityName, id: cityId });
+                saveFavoriteCities();
+                renderFavoriteCities();
+            }
+        }
+
+        function renderFavoriteCities() {
+            cityList.innerHTML = '';
+            
+            if (favoriteCities.length === 0) {
+                cityList.innerHTML = '<p class="no-cities">No favorite cities yet. Search for a city to add it.</p>';
+                return;
+            }
+            
+            favoriteCities.forEach((city, index) => {
+                const cityItem = document.createElement('div');
+                cityItem.className = 'city-item';
+                cityItem.innerHTML = `
+                    <span class="city-name" data-city="${city.name}">${city.name}</span>
+                    <div class="city-actions">
+                        <button class="action-btn edit-btn" data-index="${index}">Edit</button>
+                        <button class="action-btn delete-btn" data-index="${index}">Delete</button>
+                    </div>
+                `;
+                cityList.appendChild(cityItem);
+            });
+            
+            // Add event listeners
+            document.querySelectorAll('.city-name').forEach(item => {
+                item.addEventListener('click', () => {
+                    checkWeather(item.textContent);
+                });
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = btn.getAttribute('data-index');
+                    editCity(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = btn.getAttribute('data-index');
+                    deleteCity(index);
+                });
+            });
+        }
+
+        function editCity(index) {
+            const newName = prompt('Edit city name:', favoriteCities[index].name);
+            if (newName && newName.trim() !== '') {
+                favoriteCities[index].name = newName.trim();
+                saveFavoriteCities();
+                renderFavoriteCities();
+            }
+        }
+
+        function deleteCity(index) {
+            if (confirm(`Are you sure you want to remove ${favoriteCities[index].name} from favorites?`)) {
+                favoriteCities.splice(index, 1);
+                saveFavoriteCities();
+                renderFavoriteCities();
+                
+                // If we deleted the currently displayed city, clear the weather display
+                if (document.querySelector(".city").textContent === favoriteCities[index]?.name) {
+                    document.querySelector(".weather").style.display = "none";
+                }
+            }
+        }
+
+        function saveFavoriteCities() {
+            localStorage.setItem("favoriteCities", JSON.stringify(favoriteCities));
+        }
+    </script>
+</body>
+</html>
